@@ -1,5 +1,0 @@
-python-dotenv
-openai
-anthropic
-google-generativeai
-pillow
