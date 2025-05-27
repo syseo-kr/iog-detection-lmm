@@ -6,7 +6,7 @@ This framework tests multiple LLM models including GPT, Claude, and Gemini on im
 
 2) Configuration
 
-The framework is currently configured to use GPT-4o, Claude-3-5-Sonnet-20241022, and Gemini-2.5-Flash-Preview models. Users can modify these settings by updating the model configuration section in the main Python file. Before running the program, users must add their own API keys to the .env file as the distributed version will not contain pre-configured keys for security reasons. API keys must be kept confidential at all times once entered. Test images should be placed in the designated img/ directory before execution.
+The framework is currently configured to use GPT-4o, Claude-3-5-Sonnet-20241022, and Gemini-2.5-Flash-Preview models. Users can modify these settings by updating the model configuration section in the main Python file. Before running the program, users must add their own API keys to the .env file as the distributed version will not contain pre-configured keys for security reasons. API keys must be kept confidential at all times once entered. Users must also create an img/ directory in the project root and place their test images inside this folder before execution.
 
 3) Program Workflow
 
@@ -14,7 +14,7 @@ The program begins by prompting users to specify the starting image number, with
 
 4) Installation and Execution
 
-Users must first install the required dependencies using pip install -r requirements.txt or pip3 install -r requirements.txt depending on their Python installation. Ensure that valid API keys for OpenAI, Anthropic, and Google are properly configured in the .env file before attempting to run the program. Once dependencies are installed and API keys are configured, the framework can be executed using python test.py or python3 test.py commands.
+Users must first install the required dependencies using pip install -r requirements.txt or pip3 install -r requirements.txt depending on their Python installation. Ensure that valid API keys for OpenAI, Anthropic, and Google are properly configured in the .env file and that test images are placed in the img/ directory before attempting to run the program. Once dependencies are installed and both API keys and test images are configured, the framework can be executed using python test.py or python3 test.py commands.
 
 5) Critical Usage Notes
 
