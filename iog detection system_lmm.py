@@ -9,20 +9,20 @@ import google.generativeai as genai
 from PIL import Image
 import io
 
-# 환경 변수 로드
+
 load_dotenv()
 
-# 설정 변수
-BATCH_SIZE = 10  # 한 번에 처리할 이미지 개수
-IMAGE_FOLDER = "img"  # 이미지가 있는 폴더 경로
-OUTPUT_CSV = "gambling_results.csv"  # 결과를 저장할 CSV 파일 경로
 
-# LLM 모델 설정
+BATCH_SIZE = 10  
+IMAGE_FOLDER = "img"  
+OUTPUT_CSV = "gambling_results.csv"  
+
+
 OPENAI_MODEL = "gpt-4o"
 CLAUDE_MODEL = "claude-3-5-sonnet-20241022"
 GEMINI_MODEL = "models/gemini-2.5-flash-preview-04-17"
 
-# 프롬프트 설정
+
 PROMPT = f"""
 You will be given a set of image files, each representing a screenshot of a website's landing page. Your task is to determine whether each website appears to be operating as an illegal online gambling site, based solely on the visual content of the image.
 
@@ -48,23 +48,20 @@ CRITICAL INSTRUCTIONS:
 You must analyze exactly these files and include ALL of them in your response:
 """
 
-# API 키 설정
+
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 def encode_image_to_base64(image_path):
-    """이미지를 base64로 인코딩"""
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 def encode_image_to_bytes(image_path):
-    """이미지를 바이트로 인코딩"""
     with open(image_path, "rb") as image_file:
         return image_file.read()
 
 def get_all_image_files():
-    """이미지 폴더에서 모든 이미지 파일 경로 가져오기"""
     image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp']
     image_files = []
     
@@ -75,12 +72,10 @@ def get_all_image_files():
     return image_files
 
 def process_images_with_gpt(image_batch, max_retries=3):
-    """GPT 모델로 이미지 처리"""
-    last_result = ""  # 마지막 응답을 저장할 변수 추가
+    last_result = ""
     
     for attempt in range(max_retries):
         try:
-            # 이미지 파일 목록을 먼저 포함시킴
             filenames = [os.path.basename(img) for img in image_batch]
             file_list_text = "\n" + "\n".join(filenames)
             
@@ -104,14 +99,13 @@ def process_images_with_gpt(image_batch, max_retries=3):
             )
             
             result = response.choices[0].message.content
-            last_result = result  # 결과 저장
+            last_result = result  
             
-            # 응답 결과 출력
-            print("\n----- GPT 응답 결과 (시도 {}/{})) -----".format(attempt+1, max_retries))
+            print("\n----- GPT Response Result (Attempt {}/{})) -----".format(attempt+1, max_retries))
             print(result)
             print("----------------------------")
             
-            # 응답 유효성 검사: 각 파일에 대한 판단이 있는지 확인
+
             valid_response = True
             missing_files = []
             for img_path in image_batch:
@@ -121,28 +115,24 @@ def process_images_with_gpt(image_batch, max_retries=3):
                     missing_files.append(filename)
             
             if not valid_response:
-                print(f"GPT 응답에서 다음 파일에 대한 판단을 찾을 수 없습니다: {', '.join(missing_files)}. 재시도 중... (시도 {attempt+1}/{max_retries})")
+                print(f"Could not find judgment for the following file in GPT response: {', '.join(missing_files)}. Repeated attempt... (Attempt {attempt+1}/{max_retries})")
             else:
                 return result
             
-            # 잠시 대기 후 재시도
             time.sleep(2)
             
         except Exception as e:
-            print(f"GPT 처리 오류: {e}. 재시도 중... (시도 {attempt+1}/{max_retries})")
+            print(f"GPT processing error: {e}. Repeated attempt... (Attempt {attempt+1}/{max_retries})")
             time.sleep(2)
     
-    # 최대 재시도 횟수를 초과한 경우
-    print(f"GPT 처리 실패: 최대 재시도 횟수({max_retries})를 초과했습니다.")
-    return last_result  # 유효하지 않더라도 마지막 응답 반환
+    print(f"GPT processing failed: Maximum retry limit ({max_retries}) exceeded.")
+    return last_result 
 
 def process_images_with_claude(image_batch, max_retries=3):
-    """Claude 모델로 이미지 처리"""
-    last_result = ""  # 마지막 응답 저장 변수
+    last_result = ""
     
     for attempt in range(max_retries):
         try:
-            # 이미지 파일 목록을 먼저 포함시킴
             filenames = [os.path.basename(img) for img in image_batch]
             file_list_text = "\n" + "\n".join(filenames)
             
@@ -155,8 +145,7 @@ def process_images_with_claude(image_batch, max_retries=3):
                 with open(img_path, "rb") as img_file:
                     img_data = img_file.read()
                     
-                    # 이미지 형식 감지
-                    media_type = "image/jpeg"  # 기본값
+                    media_type = "image/jpeg" 
                     file_ext = os.path.splitext(img_path)[1].lower()
                     if file_ext == ".png":
                         media_type = "image/png"
@@ -186,14 +175,12 @@ def process_images_with_claude(image_batch, max_retries=3):
             )
             
             result = response.content[0].text
-            last_result = result  # 결과 저장
+            last_result = result 
             
-            # 응답 결과 출력 (한 번만 출력)
-            print("\n----- Claude 응답 결과 (시도 {}/{})) -----".format(attempt+1, max_retries))
+            print("\n----- Claude Response Result (Attempt {}/{})) -----".format(attempt+1, max_retries))
             print(result)
             print("----------------------------")
             
-            # 응답 유효성 검사: 각 파일에 대한 판단이 있는지 확인
             valid_response = True
             missing_files = []
             for img_path in image_batch:
@@ -203,30 +190,29 @@ def process_images_with_claude(image_batch, max_retries=3):
                     missing_files.append(filename)
             
             if not valid_response:
-                print(f"Claude 응답에서 다음 파일에 대한 판단을 찾을 수 없습니다: {', '.join(missing_files)}. 재시도 중... (시도 {attempt+1}/{max_retries})")
+                print(f"Could not find judgment for the following file in Claude response: {', '.join(missing_files)}. Repeated attempt... (Attempt {attempt+1}/{max_retries})")
             else:
-                return result  # 유효한 응답이면 바로 반환 (추가 출력 없음)
+                return result 
             
-            # 잠시 대기 후 재시도
             time.sleep(2)
             
         except Exception as e:
-            print(f"Claude 처리 오류: {e}. 재시도 중... (시도 {attempt+1}/{max_retries})")
+            print(f"Claude processing error: {e}. Repeated attempt... (Attempt {attempt+1}/{max_retries})")
             time.sleep(2)
     
     # 최대 재시도 횟수를 초과한 경우
-    print(f"Claude 처리 실패: 최대 재시도 횟수({max_retries})를 초과했습니다.")
+    print(f"Claude processing failed: Maximum retry limit ({max_retries}) exceeded.")
     return last_result  # 유효하지 않더라도 마지막 응답 반환
 
 def process_images_with_gemini(image_batch, max_retries=3):
-    """Gemini 모델로 이미지 처리"""
-    last_result = ""  # 마지막 응답 저장 변수
+
+    last_result = ""
     
     for attempt in range(max_retries):
         try:
             model = genai.GenerativeModel(GEMINI_MODEL)
             
-            # 이미지 파일 목록을 먼저 포함시킴
+
             filenames = [os.path.basename(img) for img in image_batch]
             file_list_text = "\n" + "\n".join(filenames)
             
@@ -241,14 +227,12 @@ def process_images_with_gemini(image_batch, max_retries=3):
             response = model.generate_content(contents)
             
             result = response.text
-            last_result = result  # 결과 저장
+            last_result = result
             
-            # 응답 결과 출력
-            print("\n----- Gemini 응답 결과 (시도 {}/{})) -----".format(attempt+1, max_retries))
+            print("\n----- Gemini Response Result (Attmept {}/{})) -----".format(attempt+1, max_retries))
             print(result)
             print("----------------------------")
             
-            # 응답 유효성 검사: 각 파일에 대한 판단이 있는지 확인
             valid_response = True
             missing_files = []
             for img_path in image_batch:
@@ -258,35 +242,31 @@ def process_images_with_gemini(image_batch, max_retries=3):
                     missing_files.append(filename)
             
             if not valid_response:
-                print(f"Gemini 응답에서 다음 파일에 대한 판단을 찾을 수 없습니다: {', '.join(missing_files)}. 재시도 중... (시도 {attempt+1}/{max_retries})")
+                print(f"Could not find judgment for the following file in Gemini response:{', '.join(missing_files)}. Repeated attempt... (Attempt {attempt+1}/{max_retries})")
             else:
                 return result
             
-            # 잠시 대기 후 재시도
             time.sleep(2)
             
         except Exception as e:
-            print(f"Gemini 처리 오류: {e}. 재시도 중... (시도 {attempt+1}/{max_retries})")
+            print(f"Gemini processing error: {e}. Repeated attempt... (Attempt {attempt+1}/{max_retries})")
             time.sleep(2)
     
-    # 최대 재시도 횟수를 초과한 경우
-    print(f"Gemini 처리 실패: 최대 재시도 횟수({max_retries})를 초과했습니다.")
-    return last_result  # 유효하지 않더라도 마지막 응답 반환
+    print(f"Gemini processing failed: Maximum retry limit ({max_retries}) exceeded.")
+    return last_result
 
 def parse_results(text, filenames):
-    """모델 응답에서 파일 이름과 판단 결과 파싱 - 다양한 형식 지원"""
     results = {}
     base_filenames = [os.path.basename(f) for f in filenames]
     
     if not text or text.strip() == "":
-        print("응답이 비어있습니다.")
+        print("Empty Response")
         return results
     
-    print("\n=== 파싱 중인 텍스트 ===")
+    print("\n=== Parsing text ===")
     print(text)
     print("========================\n")
     
-    # 1. 일반적인 형식 (filename: xxx judgment: O/X) 처리
     lines = text.strip().split('\n')
     for line in lines:
         if 'judgment:' in line.lower() or 'judgment :' in line.lower():
@@ -294,23 +274,20 @@ def parse_results(text, filenames):
             filename_part = parts[0].strip()
             judgment_part = parts[1].strip() if len(parts) > 1 else ""
             
-            # 파일 이름 추출
             filename = ""
             if "filename:" in filename_part.lower():
                 filename = filename_part.split("filename:")[1].strip()
             elif "filename :" in filename_part.lower():
                 filename = filename_part.split("filename :")[1].strip()
             else:
-                # 파일 이름이 명확하게 표시되지 않은 경우 순서대로 맞추기
                 for f in base_filenames:
                     if f in filename_part:
                         filename = f
                         break
             
-            # 결과에서 파일 이름의 대괄호나 따옴표 제거
             filename = filename.strip("[]'\"\t ")
+
             
-            # 판단 추출 (O 또는 X)
             judgment = ""
             if "O" in judgment_part or "o" in judgment_part:
                 judgment = "O"
@@ -319,9 +296,9 @@ def parse_results(text, filenames):
             
             if filename and judgment:
                 results[filename] = judgment
-                print(f"파싱 결과 (표준 형식): {filename} -> {judgment}")
+                print(f"Parsing result (Standard Format): {filename} -> {judgment}")
     
-    # 2. 간단한 형식 (filename.png: O/X) 처리
+
     if len(results) < len(base_filenames):
         for line in lines:
             if ':' in line and ('O' in line or 'X' in line or 'o' in line or 'x' in line):
@@ -330,7 +307,7 @@ def parse_results(text, filenames):
                     filename_part = parts[0].strip()
                     judgment_part = parts[1].strip()
                     
-                    # 파일명 매칭
+
                     matched_filename = ""
                     for f in base_filenames:
                         if f in filename_part or filename_part in f:
@@ -340,7 +317,7 @@ def parse_results(text, filenames):
                     if not matched_filename:
                         continue
                     
-                    # 판단 추출
+
                     judgment = ""
                     if "O" in judgment_part or "o" in judgment_part:
                         judgment = "O"
@@ -349,9 +326,8 @@ def parse_results(text, filenames):
                     
                     if matched_filename and judgment and matched_filename not in results:
                         results[matched_filename] = judgment
-                        print(f"파싱 결과 (간략 형식): {matched_filename} -> {judgment}")
+                        print(f"Paring result (Concise format): {matched_filename} -> {judgment}")
     
-    # 3. 표 형식 처리 (markdown 표나 다른 포맷)
     if len(results) < len(base_filenames):
         for line in lines:
             if '|' in line:
@@ -360,7 +336,7 @@ def parse_results(text, filenames):
                     if not part:
                         continue
                     
-                    # 각 셀에서 파일명과 판단 찾기
+
                     file_match = None
                     for f in base_filenames:
                         if f in part:
@@ -370,7 +346,7 @@ def parse_results(text, filenames):
                     if not file_match:
                         continue
                     
-                    # 판단 추출
+
                     judgment = ""
                     if "O" in part or "o" in part:
                         judgment = "O"
@@ -379,15 +355,14 @@ def parse_results(text, filenames):
                     
                     if file_match and judgment and file_match not in results:
                         results[file_match] = judgment
-                        print(f"파싱 결과 (표 형식): {file_match} -> {judgment}")
+                        print(f"Parsing result (Table format): {file_match} -> {judgment}")
     
-    # 4. 목록 형식 처리 (파일명과 판단이 근접해 있는 경우)
+
     if len(results) < len(base_filenames):
         for i, line in enumerate(lines):
             if not line.strip():
                 continue
                 
-            # 현재 줄에서 파일명 찾기
             file_match = None
             for f in base_filenames:
                 if f in line:
@@ -397,7 +372,7 @@ def parse_results(text, filenames):
             if not file_match or file_match in results:
                 continue
             
-            # 현재 줄이나 다음 줄에서 판단 찾기
+
             judgment = ""
             search_lines = [line]
             if i + 1 < len(lines):
@@ -413,13 +388,12 @@ def parse_results(text, filenames):
             
             if file_match and judgment:
                 results[file_match] = judgment
-                print(f"파싱 결과 (목록 형식): {file_match} -> {judgment}")
+                print(f"Paring result (List format): {file_match} -> {judgment}")
     
-    # 5. 마지막 시도 - 모든 남은 파일에 대해 전체 텍스트에서 판단 추론
+
     if len(results) < len(base_filenames):
         for f in base_filenames:
             if f not in results:
-                # 파일명 주변 컨텍스트 찾기
                 context = ""
                 for line in lines:
                     if f in line:
@@ -429,7 +403,6 @@ def parse_results(text, filenames):
                 if not context:
                     continue
                 
-                # 파일명 주변에서 O/X 찾기
                 judgment = ""
                 if "O" in context or "o" in context:
                     judgment = "O"
@@ -438,9 +411,8 @@ def parse_results(text, filenames):
                 
                 if judgment:
                     results[f] = judgment
-                    print(f"파싱 결과 (컨텍스트 추론): {f} -> {judgment}")
+                    print(f"Parsing result (Context reasoning): {f} -> {judgment}")
     
-    # 6. 완전히 다른 특수 형식 처리 (filename.png: X 형식)
     if len(results) < len(base_filenames):
         for line in lines:
             if ':' in line:
@@ -449,11 +421,10 @@ def parse_results(text, filenames):
                     filename_part = parts[0].strip()
                     value_part = parts[1].strip()
                     
-                    # 파일명 확인
                     if filename_part.endswith('.png') or filename_part.endswith('.jpg') or filename_part.endswith('.jpeg'):
                         for f in base_filenames:
                             if filename_part == f:
-                                # 판단 추출
+
                                 judgment = ""
                                 if value_part.strip() == 'O' or value_part.strip() == 'o':
                                     judgment = "O"
@@ -462,53 +433,50 @@ def parse_results(text, filenames):
                                 
                                 if judgment and f not in results:
                                     results[f] = judgment
-                                    print(f"파싱 결과 (특수 형식): {f} -> {judgment}")
+                                    print(f"Parsing result (Specialized format): {f} -> {judgment}")
     
-    print(f"최종 파싱 결과 ({len(results)}/{len(base_filenames)}개 파일 처리됨): {results}")
+    print(f"Final Parsing Result ({len(results)}/{len(base_filenames)} number of files processed): {results}")
     return results
 
 def create_log_directory():
-    """로그 디렉토리 생성"""
     log_dir = "logs"
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     return log_dir
 
 def create_log_files(timestamp):
-    """로그 디렉토리 및 파일 생성"""
     log_dir = create_log_directory()
     
-    # 하나의 통합 로그 파일 생성
+
     combined_log_file = f"{log_dir}/combined_log_{timestamp}.log"
     
     with open(combined_log_file, 'w', encoding='utf-8') as f:
-        f.write(f"=== 불법 도박 사이트 탐지 로그 ({timestamp}) ===\n\n")
+        f.write(f"=== Illegal Online Gambling Detection Log ({timestamp}) ===\n\n")
     
     return log_dir, combined_log_file
 
 def append_to_log(log_file, batch_number, gpt_result, claude_result, gemini_result, gpt_parsed, claude_parsed, gemini_parsed, current_filenames):
-    """로그 파일에 결과 추가"""
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     
     with open(log_file, 'a', encoding='utf-8') as log_file:
         log_file.write(f"\n\n{'='*50}\n")
-        log_file.write(f"=== 배치 {batch_number} 로그 ({timestamp}) ===\n")
+        log_file.write(f"=== Batch {batch_number} Log ({timestamp}) ===\n")
         log_file.write(f"{'='*50}\n\n")
-        log_file.write(f"처리 이미지: {', '.join(current_filenames)}\n\n")
+        log_file.write(f"Processing Image: {', '.join(current_filenames)}\n\n")
         
-        log_file.write("=== GPT 모델 응답 ===\n")
-        log_file.write(gpt_result if gpt_result else "응답 없음")
+        log_file.write("=== GPT Model Response ===\n")
+        log_file.write(gpt_result if gpt_result else "No response")
         log_file.write("\n\n")
         
-        log_file.write("=== Claude 모델 응답 ===\n")
-        log_file.write(claude_result if claude_result else "응답 없음")
+        log_file.write("=== Claude Model Response ===\n")
+        log_file.write(claude_result if claude_result else "No response")
         log_file.write("\n\n")
         
-        log_file.write("=== Gemini 모델 응답 ===\n")
-        log_file.write(gemini_result if gemini_result else "응답 없음")
+        log_file.write("=== Gemini Model Response ===\n")
+        log_file.write(gemini_result if gemini_result else "No response")
         log_file.write("\n\n")
         
-        log_file.write("=== 파싱 결과 요약 ===\n")
+        log_file.write("=== Parsing result summary ===\n")
         log_file.write("Filename, GPT, Claude, Gemini\n")
         for filename in current_filenames:
             gpt_judgment = gpt_parsed.get(filename, "")
@@ -516,78 +484,75 @@ def append_to_log(log_file, batch_number, gpt_result, claude_result, gemini_resu
             gemini_judgment = gemini_parsed.get(filename, "")
             log_file.write(f"{filename}, {gpt_judgment}, {claude_judgment}, {gemini_judgment}\n")
         
-        # 파싱되지 않은 응답이 있는지 확인
+
         missing_gpt = [f for f in current_filenames if f not in gpt_parsed]
         missing_claude = [f for f in current_filenames if f not in claude_parsed]
         missing_gemini = [f for f in current_filenames if f not in gemini_parsed]
         
         if missing_gpt or missing_claude or missing_gemini:
-            log_file.write("\n=== 누락된 판단 결과 ===\n")
+            log_file.write("\n=== Missing judgement result ===\n")
             if missing_gpt:
-                log_file.write(f"GPT에서 누락된 파일: {', '.join(missing_gpt)}\n")
+                log_file.write(f"Missing files from GPT: {', '.join(missing_gpt)}\n")
             if missing_claude:
-                log_file.write(f"Claude에서 누락된 파일: {', '.join(missing_claude)}\n")
+                log_file.write(f"Missing files from Claude: {', '.join(missing_claude)}\n")
             if missing_gemini:
-                log_file.write(f"Gemini에서 누락된 파일: {', '.join(missing_gemini)}\n")
+                log_file.write(f"Missing files from Gemini: {', '.join(missing_gemini)}\n")
     
-    print(f"로그가 통합 로그 파일에 추가되었습니다.")
+    print(f"Log has been added to the consolidated log file.")
 
-def append_error_to_log(log_file, batch_number, error, current_filenames):
-    """오류 정보를 로그 파일에 추가"""
+def append_error_to_log(log_file, batch_number, error, current_filenames)
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     
     with open(log_file, 'a', encoding='utf-8') as f:
         f.write(f"\n\n{'='*50}\n")
-        f.write(f"=== 배치 {batch_number} 오류 로그 ({timestamp}) ===\n")
+        f.write(f"=== Batch {batch_number} error log ({timestamp}) ===\n")
         f.write(f"{'='*50}\n\n")
-        f.write(f"배치 {batch_number} 처리 중 오류 발생: {error}\n")
-        f.write(f"처리 이미지: {', '.join(current_filenames)}\n")
+        f.write(f" Error occurred during processing Batch {batch_number}: {error}\n")
+        f.write(f"Processed image: {', '.join(current_filenames)}\n")
     
-    print(f"오류 정보가 통합 로그 파일에 추가되었습니다.")
+    print(f"Error information has been added to the consolidated log file.")
 
 def main():
-    # 타임스탬프 생성
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    output_csv = f"gambling_results_{timestamp}.csv"  # 파일명에 타임스탬프 추가
+    output_csv = f"gambling_results_{timestamp}.csv"
     
-    # 로그 디렉토리 및 파일 생성
+
     log_dir, combined_log_file = create_log_files(timestamp)
     
-    # 모든 이미지 파일 가져오기
+
     all_images = get_all_image_files()
     total_images = len(all_images)
     
     if total_images == 0:
-        print(f"'{IMAGE_FOLDER}' 폴더에 이미지가 없습니다.")
+        print(f"'{IMAGE_FOLDER}' folder does not contain images")
         return
     
-    print(f"총 {total_images}개의 이미지를 처리할 수 있습니다.")
+    print(f"{total_images} number of image is available to process")
     
     # 시작 인덱스 입력 받기
-    start_index_input = input(f"몇 번째 이미지부터 시작할까요? (1-{total_images}, 기본값: 1): ").strip()
+    start_index_input = input(f"Which image number would you like to start from? (1-{total_images}, default: 1):").strip()
     start_index = 1
     
     try:
         if start_index_input:
             start_index = int(start_index_input)
             if start_index < 1:
-                print("1보다 작은 값은 입력할 수 없습니다. 1부터 시작합니다.")
+                print("You cannot input number less than 1. We start from number 1.")
                 start_index = 1
             elif start_index > total_images:
-                print(f"{total_images}보다 큰 값은 입력할 수 없습니다. 1부터 시작합니다.")
+                print(f"You cannot input number bigger than {total_images}. We start from number 1.")
                 start_index = 1
     except ValueError:
-        print("유효한 숫자가 아닙니다. 1부터 시작합니다.")
+        print("Input invalid. We start from number 1")
         start_index = 1
     
-    # 시작 인덱스를 배치 인덱스로 변환
+
     batch_start_index = ((start_index - 1) // BATCH_SIZE) * BATCH_SIZE
     
-    # 이미 처리된 이미지가 있으면 표시
+
     if start_index > 1:
-        print(f"이미지 {start_index}번부터 처리를 시작합니다. (이미지 1-{start_index-1}번은 건너뜁니다.)")
+        print(f"Starting processing from image {start_index}. (Images 1-{start_index-1} will be skipped.)")
         
-        # 기존 CSV 파일 확인
         continue_csv = input("기존 CSV 파일이 있다면 계속 이어서 작성할까요? (y/n, 기본값: n): ").strip().lower()
         
         if continue_csv == 'y':
